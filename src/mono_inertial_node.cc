@@ -5,34 +5,53 @@
 */
 
 #include "common.h"
+#include "custom_msgs/Encoder.h"
+
 
 using namespace std;
 
-class ImuGrabber
+class ImuGrabber  //IMU 数据 grab类
 {
 public:
-    ImuGrabber(){};
+    ImuGrabber()= default;
     void GrabImu(const sensor_msgs::ImuConstPtr &imu_msg);
 
     queue<sensor_msgs::ImuConstPtr> imuBuf;
     std::mutex mBufMutex;
 };
 
-class ImageGrabber
+class EncoderGrabber
+{
+public:
+
+    EncoderGrabber()= default;
+    void GrabEncoder(const custom_msgs::EncoderConstPtr &encoder_msg);
+    queue<custom_msgs::EncoderConstPtr> encbuf;
+    std::mutex mBufMutex;
+
+};
+
+class ImageGrabber  //图像数据 grab类
 {
 public:
     ImageGrabber(ORB_SLAM3::System* pSLAM, ImuGrabber *pImuGb): mpSLAM(pSLAM), mpImuGb(pImuGb){}
+    ImageGrabber(ORB_SLAM3::System* pSLAM, ImuGrabber *pImuGb, EncoderGrabber *pEncGb): mpSLAM(pSLAM), mpImuGb(pImuGb), mpEncGb(pEncGb){}
 
     void GrabImage(const sensor_msgs::ImageConstPtr& msg);
     cv::Mat GetImage(const sensor_msgs::ImageConstPtr &img_msg);
-    void SyncWithImu();
+    void SyncWithImu();  //Image 数据和IMU数据进行时间戳对齐
 
     queue<sensor_msgs::ImageConstPtr> img0Buf;
     std::mutex mBufMutex;
    
     ORB_SLAM3::System* mpSLAM;
     ImuGrabber *mpImuGb;
+
+    EncoderGrabber *mpEncGb;
 };
+
+//bool buseEncoder;
+bool buseEncoder =true;
 
 
 int main(int argc, char **argv)
@@ -45,7 +64,7 @@ int main(int argc, char **argv)
     }
 
     ros::NodeHandle node_handler;
-    std::string node_name = ros::this_node::getName();
+    const std::string& node_name = ros::this_node::getName();
     image_transport::ImageTransport image_transport(node_handler);
 
     std::string voc_file, settings_file;
@@ -69,15 +88,22 @@ int main(int argc, char **argv)
     sensor_type = ORB_SLAM3::System::IMU_MONOCULAR;
     ORB_SLAM3::System SLAM(voc_file, settings_file, sensor_type, enable_pangolin);
 
-    ImuGrabber imugb;
-    ImageGrabber igb(&SLAM, &imugb);
+    // 利用一个bool变量来辨别是否融合轮速数据
 
+
+    EncoderGrabber encgb;
+    if(buseEncoder) {
+        ros::Subscriber sub_encoder = node_handler.subscribe("/encoder/data_raw", 100, &EncoderGrabber::GrabEncoder,&encgb);
+    }
+
+
+    ImuGrabber imugb;
+    ImageGrabber igb(&SLAM, &imugb, &encgb);
     ros::Subscriber sub_imu = node_handler.subscribe("/imu", 1000, &ImuGrabber::GrabImu, &imugb); 
     ros::Subscriber sub_img0 = node_handler.subscribe("/camera/image_raw", 100, &ImageGrabber::GrabImage, &igb);
-
     setup_ros_publishers(node_handler, image_transport);
-
     std::thread sync_thread(&ImageGrabber::SyncWithImu, &igb);
+
 
     ros::spin();
 
@@ -96,6 +122,8 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr &img_msg)
     img0Buf.push(img_msg);
     mBufMutex.unlock();
 }
+
+
 
 cv::Mat ImageGrabber::GetImage(const sensor_msgs::ImageConstPtr &img_msg)
 {
@@ -125,17 +153,18 @@ void ImageGrabber::SyncWithImu()
 {
     while(1)
     {
+        if(!buseEncoder){
         if (!img0Buf.empty()&&!mpImuGb->imuBuf.empty())
         {
             cv::Mat im;
             double tIm = 0;
 
-            tIm = img0Buf.front()->header.stamp.toSec();
-            if(tIm>mpImuGb->imuBuf.back()->header.stamp.toSec())
+            tIm = img0Buf.front()->header.stamp.toSec();   //最近一张图像的时间戳
+            if(tIm>mpImuGb->imuBuf.back()->header.stamp.toSec())  //如果当前IMU的时间比IMG数据晚
                 continue;
             
             this->mBufMutex.lock();
-            im = GetImage(img0Buf.front());
+            im = GetImage(img0Buf.front()); //把最前面的image提出来
             ros::Time msg_time = img0Buf.front()->header.stamp;
             img0Buf.pop();
             this->mBufMutex.unlock();
@@ -154,7 +183,8 @@ void ImageGrabber::SyncWithImu()
                     
                     cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
 
-                    vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc, gyr, t));
+                    vImuMeas.emplace_back(acc, gyr, t);//emplace_back的参数是作为构造函数参数的序列，它在容器的尾部直接构造一个新元素。
+                            // 这种方法避免了拷贝构造函数的调用，因为它直接在容器中构造元素。这样可以提高效率并消除复制操作，使代码更加简洁。
 
                     mpImuGb->imuBuf.pop();
                 }
@@ -169,7 +199,57 @@ void ImageGrabber::SyncWithImu()
             publish_ros_tf_transform(Twc, world_frame_id, cam_frame_id, msg_time);
             publish_ros_tracked_mappoints(mpSLAM->GetTrackedMapPoints(), msg_time);
         }
+        }
+        else{
+            if (!img0Buf.empty()&&!mpImuGb->imuBuf.empty()&&!mpEncGb->encbuf.empty())
+            {
+                cv::Mat im;
+                double tIm = 0;
 
+                tIm = img0Buf.front()->header.stamp.toSec();   //最近一张图像的时间戳
+                if(tIm>mpImuGb->imuBuf.back()->header.stamp.toSec())  //如果当前IMU的时间比IMG数据晚
+                    continue;
+
+                this->mBufMutex.lock();
+                im = GetImage(img0Buf.front()); //把最前面的image提出来
+                ros::Time msg_time = img0Buf.front()->header.stamp;
+                img0Buf.pop();
+                this->mBufMutex.unlock();
+
+                vector<ORB_SLAM3::IMU::Point> vImuMeas;
+                mpImuGb->mBufMutex.lock();
+                mpEncGb->mBufMutex.lock();
+                if (!mpImuGb->imuBuf.empty())
+                {
+                    // Load imu measurements from buffer
+                    vImuMeas.clear();
+                    while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)
+                    {
+                        double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
+
+                        cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
+
+                        cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
+
+                        vImuMeas.emplace_back(acc, gyr, t);//emplace_back的参数是作为构造函数参数的序列，它在容器的尾部直接构造一个新元素。
+                        // 这种方法避免了拷贝构造函数的调用，因为它直接在容器中构造元素。这样可以提高效率并消除复制操作，使代码更加简洁。
+
+                        mpImuGb->imuBuf.pop();
+                    }
+                }
+                mpImuGb->mBufMutex.unlock();
+                mpEncGb->mBufMutex.lock();
+
+
+                // Main algorithm runs here
+                Sophus::SE3f Tcw = mpSLAM->TrackMonocular(im, tIm, vImuMeas);
+                Sophus::SE3f Twc = Tcw.inverse();
+
+                publish_ros_camera_pose(Twc, msg_time);
+                publish_ros_tf_transform(Twc, world_frame_id, cam_frame_id, msg_time);
+                publish_ros_tracked_mappoints(mpSLAM->GetTrackedMapPoints(), msg_time);
+            }
+        }
         std::chrono::milliseconds tSleep(1);
         std::this_thread::sleep_for(tSleep);
     }
@@ -180,6 +260,11 @@ void ImuGrabber::GrabImu(const sensor_msgs::ImuConstPtr &imu_msg)
     mBufMutex.lock();
     imuBuf.push(imu_msg);
     mBufMutex.unlock();
+}
 
-    return;
+void EncoderGrabber::GrabEncoder(const custom_msgs::EncoderConstPtr &encoder_msg)
+{
+    mBufMutex.lock();
+    encbuf.push(encoder_msg);
+    mBufMutex.unlock();
 }

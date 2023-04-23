@@ -6,6 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /TF1/Frames1
+        - /PointCloud21
+        - /PointCloud21/Autocompute Value Bounds1
       Splitter Ratio: 0.4000000059604645
     Tree Height: 604
   - Class: rviz/Selection
@@ -94,6 +96,32 @@ Visualization Manager:
         All Enabled: false
         camera:
           Value: true
+        camera_accel_frame:
+          Value: true
+        camera_accel_optical_frame:
+          Value: true
+        camera_color_frame:
+          Value: true
+        camera_color_optical_frame:
+          Value: true
+        camera_depth_frame:
+          Value: true
+        camera_depth_optical_frame:
+          Value: true
+        camera_gyro_frame:
+          Value: true
+        camera_imu_optical_frame:
+          Value: true
+        camera_infra1_frame:
+          Value: true
+        camera_infra1_optical_frame:
+          Value: true
+        camera_infra2_frame:
+          Value: true
+        camera_infra2_optical_frame:
+          Value: true
+        camera_link:
+          Value: true
         world:
           Value: true
       Marker Alpha: 1
@@ -111,14 +139,14 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
+        Max Value: 3.389451026916504
+        Min Value: 0
         Value: true
-      Axis: Z
+      Axis: Y
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color Transformer: AxisColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
@@ -126,11 +154,11 @@ Visualization Manager:
       Min Color: 0; 0; 0
       Name: PointCloud2
       Position Transformer: XYZ
-      Queue Size: 10
+      Queue Size: 100
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.029999999329447746
-      Style: Points
+      Size (m): 0.019999999552965164
+      Style: Spheres
       Topic: /orb_slam3/map_points
       Unreliable: false
       Use Fixed Frame: true
@@ -164,7 +192,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.7267301082611084
+      Distance: 0.0037345667369663715
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -172,17 +200,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.26816612482070923
-        Y: -0.2524484395980835
-        Z: 0.5054121017456055
+        X: 1.2493669986724854
+        Y: 0.4213689863681793
+        Z: 1.1466208696365356
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6147964596748352
+      Pitch: 0.934796929359436
       Target Frame: <Fixed Frame>
-      Yaw: 4.719982147216797
+      Yaw: 3.201789617538452
     Saved: ~
 Window Geometry:
   Displays:
@@ -202,5 +230,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1848
-  X: 72
-  Y: 27
+  X: 385
+  Y: 255

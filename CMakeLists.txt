@@ -3,7 +3,7 @@ project(orb_slam3_ros_wrapper)
 
 # Change this to your installation of ORB-SLAM3. Default is ~/
 set(ORB_SLAM3_DIR
-   $ENV{HOME}/Packages/ORB_SLAM3
+   /home/jhon/ORB-SLAM3/ORB_SLAM3_detailed_comments
 )
 
 set(CMAKE_BUILD_TYPE "Release")
@@ -32,9 +32,11 @@ MESSAGE(${Eigen3_VERSION})
 find_package(Pangolin REQUIRED)
 
 catkin_package (
-   CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport tf sensor_msgs message_runtime
+   CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport tf sensor_msgs message_runtime geometry_msgs nav_msgs sensor_msgs custom_msgs
    LIBRARIES {PROJECT_NAME}
 )
+
+
 
 include_directories(
    ${ORB_SLAM3_DIR}
@@ -66,41 +68,20 @@ target_link_libraries(${PROJECT_NAME}_mono
 )
 
 
-# stereo node
-add_executable (${PROJECT_NAME}_stereo
-   src/stereo_node.cc
-   src/common.cc
-)
-target_link_libraries(${PROJECT_NAME}_stereo
-   ${LIBS}
-)
-
-
 # mono-inertial node
 add_executable (${PROJECT_NAME}_mono_inertial
    src/mono_inertial_node.cc
    src/common.cc
-)
+        src/process_encoder.cpp include/process_encoder.h ../../../ORB_SLAM3_detailed_comments/include/EncoderTypes.h)
 target_link_libraries(${PROJECT_NAME}_mono_inertial
    ${LIBS}
 )
 
-
-# stereo-inertial node
-add_executable (${PROJECT_NAME}_stereo_inertial
-   src/stereo_inertial_node.cc
-   src/common.cc
-)
-target_link_libraries(${PROJECT_NAME}_stereo_inertial
+# kaist_pub node
+add_executable (${PROJECT_NAME}_kaist_pub
+   src/kaist_pub.cpp
+        ../../../ORB_SLAM3_detailed_comments/include/EncoderTypes.h)
+target_link_libraries(${PROJECT_NAME}_kaist_pub
    ${LIBS}
 )
 
-
-# RGB-D node
-add_executable (${PROJECT_NAME}_rgbd
-   src/rgbd_node.cc
-   src/common.cc
-)
-target_link_libraries(${PROJECT_NAME}_rgbd
-   ${LIBS}
-)
