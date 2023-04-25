@@ -51,7 +51,7 @@ public:
 };
 
 //bool buseEncoder;
-bool buseEncoder =true;
+bool buseEncoder = true;
 
 
 int main(int argc, char **argv)
@@ -92,9 +92,10 @@ int main(int argc, char **argv)
 
 
     EncoderGrabber encgb;
-    if(buseEncoder) {
-        ros::Subscriber sub_encoder = node_handler.subscribe("/encoder/data_raw", 100, &EncoderGrabber::GrabEncoder,&encgb);
-    }
+
+    cerr<<"sub encoder"<<endl;
+    ros::Subscriber sub_encoder = node_handler.subscribe("/encoder/data_raw", 100, &EncoderGrabber::GrabEncoder,&encgb);
+
 
 
     ImuGrabber imugb;
@@ -120,6 +121,7 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr &img_msg)
     if (!img0Buf.empty())
         img0Buf.pop();
     img0Buf.push(img_msg);
+    //cerr<<" add img "<<endl;
     mBufMutex.unlock();
 }
 
@@ -153,6 +155,7 @@ void ImageGrabber::SyncWithImu()
 {
     while(1)
     {
+//        cerr<<"buseEncoder: "<<buseEncoder<<endl;
         if(!buseEncoder){
         if (!img0Buf.empty()&&!mpImuGb->imuBuf.empty())
         {
@@ -162,9 +165,11 @@ void ImageGrabber::SyncWithImu()
             tIm = img0Buf.front()->header.stamp.toSec();   //最近一张图像的时间戳
             if(tIm>mpImuGb->imuBuf.back()->header.stamp.toSec())  //如果当前IMU的时间比IMG数据晚
                 continue;
-            
+
+            cerr<<"begin to get image"<<endl;
             this->mBufMutex.lock();
             im = GetImage(img0Buf.front()); //把最前面的image提出来
+
             ros::Time msg_time = img0Buf.front()->header.stamp;
             img0Buf.pop();
             this->mBufMutex.unlock();
@@ -192,6 +197,7 @@ void ImageGrabber::SyncWithImu()
             mpImuGb->mBufMutex.unlock();
 
             // Main algorithm runs here
+            cerr<<"begin tracking"<<endl;
             Sophus::SE3f Tcw = mpSLAM->TrackMonocular(im, tIm, vImuMeas);
             Sophus::SE3f Twc = Tcw.inverse();
             
@@ -201,21 +207,28 @@ void ImageGrabber::SyncWithImu()
         }
         }
         else{
+//            cerr<<"imgBuffer size:  "<<img0Buf.size()<<endl;
+//            cerr<<"imuBuffer size:  "<<mpImuGb->imuBuf.size()<<endl;
+            //cerr<<"EncBuffer size:  "<<mpEncGb->encbuf.size()<<endl;
             if (!img0Buf.empty()&&!mpImuGb->imuBuf.empty()&&!mpEncGb->encbuf.empty())
             {
                 cv::Mat im;
                 double tIm = 0;
 
                 tIm = img0Buf.front()->header.stamp.toSec();   //最近一张图像的时间戳
+                //cerr<<"图像的时间戳: "<< tIm <<endl;
+                //cerr<<"IMU的时间戳: "<< mpImuGb->imuBuf.back()->header.stamp.toSec()<<endl;
+
                 if(tIm>mpImuGb->imuBuf.back()->header.stamp.toSec())  //如果当前IMU的时间比IMG数据晚
                     continue;
-
+                //cerr<<"begin to get image"<<endl;
                 this->mBufMutex.lock();
                 im = GetImage(img0Buf.front()); //把最前面的image提出来
                 ros::Time msg_time = img0Buf.front()->header.stamp;
                 img0Buf.pop();
+                //cerr<<"finishing getting image"<<endl;
                 this->mBufMutex.unlock();
-
+                cerr<<"begin to process IMU"<<endl;
                 vector<ORB_SLAM3::IMU::Point> vImuMeas;
                 mpImuGb->mBufMutex.lock();
                 mpEncGb->mBufMutex.lock();
@@ -223,24 +236,39 @@ void ImageGrabber::SyncWithImu()
                 {
                     // Load imu measurements from buffer
                     vImuMeas.clear();
+                    cerr<<"Imu Buffer: "<<mpImuGb->imuBuf.size()<<endl;
+                    cerr<<"进入循环 ： "<<(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)<<endl;
                     while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)
                     {
                         double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
+                        double encoder_v = 0;
+                        cerr<<"Encoder Buffer: "<<mpEncGb->encbuf.size()<<endl;
+                        if(mpEncGb->encbuf.empty()) encoder_v=vImuMeas.back().encoder_v;
+                        else {
+                            while(!mpEncGb->encbuf.empty()&&mpEncGb->encbuf.front()->header.stamp.toSec()<=mpImuGb->imuBuf.front()->header.stamp.toSec()){
+ //                               d_encoder = 0
+
+                                encoder_v=mpEncGb->encbuf.front()->v;
+                                mpEncGb->encbuf.pop();
+                            }
+                        }
+
 
                         cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
 
                         cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
 
-                        vImuMeas.emplace_back(acc, gyr, t);//emplace_back的参数是作为构造函数参数的序列，它在容器的尾部直接构造一个新元素。
+                        vImuMeas.emplace_back(acc, gyr, t,encoder_v);//emplace_back的参数是作为构造函数参数的序列，它在容器的尾部直接构造一个新元素。
+                        cerr<<"当前帧的速度为： "<<encoder_v<<endl;
                         // 这种方法避免了拷贝构造函数的调用，因为它直接在容器中构造元素。这样可以提高效率并消除复制操作，使代码更加简洁。
 
                         mpImuGb->imuBuf.pop();
                     }
                 }
                 mpImuGb->mBufMutex.unlock();
-                mpEncGb->mBufMutex.lock();
+                mpEncGb->mBufMutex.unlock();
 
-
+                cerr<<"begin tracking"<<endl;
                 // Main algorithm runs here
                 Sophus::SE3f Tcw = mpSLAM->TrackMonocular(im, tIm, vImuMeas);
                 Sophus::SE3f Twc = Tcw.inverse();
@@ -264,7 +292,10 @@ void ImuGrabber::GrabImu(const sensor_msgs::ImuConstPtr &imu_msg)
 
 void EncoderGrabber::GrabEncoder(const custom_msgs::EncoderConstPtr &encoder_msg)
 {
+    cerr<<"Begin to receive Encoder"<<endl;
     mBufMutex.lock();
+
     encbuf.push(encoder_msg);
+
     mBufMutex.unlock();
 }

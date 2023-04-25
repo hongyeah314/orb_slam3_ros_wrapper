@@ -27,12 +27,14 @@ struct Encoder_
   Encoder_()
     : header()
     , left_encoder(0)
-    , right_encoder(0)  {
+    , right_encoder(0)
+    , v(0.0)  {
     }
   Encoder_(const ContainerAllocator& _alloc)
     : header(_alloc)
     , left_encoder(0)
-    , right_encoder(0)  {
+    , right_encoder(0)
+    , v(0.0)  {
   (void)_alloc;
     }
 
@@ -46,6 +48,9 @@ struct Encoder_
 
    typedef int32_t _right_encoder_type;
   _right_encoder_type right_encoder;
+
+   typedef double _v_type;
+  _v_type v;
 
 
 
@@ -78,7 +83,8 @@ bool operator==(const ::custom_msgs::Encoder_<ContainerAllocator1> & lhs, const 
 {
   return lhs.header == rhs.header &&
     lhs.left_encoder == rhs.left_encoder &&
-    lhs.right_encoder == rhs.right_encoder;
+    lhs.right_encoder == rhs.right_encoder &&
+    lhs.v == rhs.v;
 }
 
 template<typename ContainerAllocator1, typename ContainerAllocator2>
@@ -135,12 +141,12 @@ struct MD5Sum< ::custom_msgs::Encoder_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "b86a0e1837ed61b10fc1936055771cc5";
+    return "ce515ea05206b446cf4077d4e65a493b";
   }
 
   static const char* value(const ::custom_msgs::Encoder_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0xb86a0e1837ed61b1ULL;
-  static const uint64_t static_value2 = 0x0fc1936055771cc5ULL;
+  static const uint64_t static_value1 = 0xce515ea05206b446ULL;
+  static const uint64_t static_value2 = 0xcf4077d4e65a493bULL;
 };
 
 template<class ContainerAllocator>
@@ -162,6 +168,7 @@ struct Definition< ::custom_msgs::Encoder_<ContainerAllocator> >
     return "Header header\n"
 "int32 left_encoder\n"
 "int32 right_encoder\n"
+"float64 v\n"
 "================================================================================\n"
 "MSG: std_msgs/Header\n"
 "# Standard metadata for higher-level stamped data types.\n"
@@ -198,6 +205,7 @@ namespace serialization
       stream.next(m.header);
       stream.next(m.left_encoder);
       stream.next(m.right_encoder);
+      stream.next(m.v);
     }
 
     ROS_DECLARE_ALLINONE_SERIALIZER
@@ -223,6 +231,8 @@ struct Printer< ::custom_msgs::Encoder_<ContainerAllocator> >
     Printer<int32_t>::stream(s, indent + "  ", v.left_encoder);
     s << indent << "right_encoder: ";
     Printer<int32_t>::stream(s, indent + "  ", v.right_encoder);
+    s << indent << "v: ";
+    Printer<double>::stream(s, indent + "  ", v.v);
   }
 };
 

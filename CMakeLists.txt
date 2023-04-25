@@ -72,7 +72,7 @@ target_link_libraries(${PROJECT_NAME}_mono
 add_executable (${PROJECT_NAME}_mono_inertial
    src/mono_inertial_node.cc
    src/common.cc
-        src/process_encoder.cpp include/process_encoder.h ../../../ORB_SLAM3_detailed_comments/include/EncoderTypes.h)
+        ../../../ORB_SLAM3_detailed_comments/include/EncoderTypes.h)
 target_link_libraries(${PROJECT_NAME}_mono_inertial
    ${LIBS}
 )
