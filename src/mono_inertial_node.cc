@@ -228,7 +228,7 @@ void ImageGrabber::SyncWithImu()
                 img0Buf.pop();
                 //cerr<<"finishing getting image"<<endl;
                 this->mBufMutex.unlock();
-                cerr<<"begin to process IMU"<<endl;
+                //cerr<<"begin to process IMU"<<endl;
                 vector<ORB_SLAM3::IMU::Point> vImuMeas;
                 mpImuGb->mBufMutex.lock();
                 mpEncGb->mBufMutex.lock();
@@ -236,13 +236,13 @@ void ImageGrabber::SyncWithImu()
                 {
                     // Load imu measurements from buffer
                     vImuMeas.clear();
-                    cerr<<"Imu Buffer: "<<mpImuGb->imuBuf.size()<<endl;
-                    cerr<<"进入循环 ： "<<(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)<<endl;
+                    //cerr<<"Imu Buffer: "<<mpImuGb->imuBuf.size()<<endl;
+                    //cerr<<"进入循环 ： "<<(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)<<endl;
                     while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)
                     {
                         double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
                         double encoder_v = 0;
-                        cerr<<"Encoder Buffer: "<<mpEncGb->encbuf.size()<<endl;
+                        //cerr<<"Encoder Buffer: "<<mpEncGb->encbuf.size()<<endl;
                         if(mpEncGb->encbuf.empty()) encoder_v=vImuMeas.back().encoder_v;
                         else {
                             while(!mpEncGb->encbuf.empty()&&mpEncGb->encbuf.front()->header.stamp.toSec()<=mpImuGb->imuBuf.front()->header.stamp.toSec()){
@@ -259,7 +259,7 @@ void ImageGrabber::SyncWithImu()
                         cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
 
                         vImuMeas.emplace_back(acc, gyr, t,encoder_v);//emplace_back的参数是作为构造函数参数的序列，它在容器的尾部直接构造一个新元素。
-                        cerr<<"当前帧的速度为： "<<encoder_v<<endl;
+                        //cerr<<"当前帧的速度为： "<<encoder_v<<endl;
                         // 这种方法避免了拷贝构造函数的调用，因为它直接在容器中构造元素。这样可以提高效率并消除复制操作，使代码更加简洁。
 
                         mpImuGb->imuBuf.pop();
@@ -292,7 +292,7 @@ void ImuGrabber::GrabImu(const sensor_msgs::ImuConstPtr &imu_msg)
 
 void EncoderGrabber::GrabEncoder(const custom_msgs::EncoderConstPtr &encoder_msg)
 {
-    cerr<<"Begin to receive Encoder"<<endl;
+    //cerr<<"Begin to receive Encoder"<<endl;
     mBufMutex.lock();
 
     encbuf.push(encoder_msg);
