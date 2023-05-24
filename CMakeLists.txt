@@ -62,7 +62,7 @@ set(LIBS
 add_executable (${PROJECT_NAME}_mono
    src/mono_node.cc
    src/common.cc
-)
+        )
 target_link_libraries(${PROJECT_NAME}_mono
    ${LIBS}
 )

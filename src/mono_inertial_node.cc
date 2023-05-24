@@ -25,8 +25,10 @@ class EncoderGrabber
 public:
 
     EncoderGrabber()= default;
-    void GrabEncoder(const custom_msgs::EncoderConstPtr &encoder_msg);
-    queue<custom_msgs::EncoderConstPtr> encbuf;
+//    void GrabEncoder(const custom_msgs::EncoderConstPtr &encoder_msg);
+    void GrabEncoder(const geometry_msgs::TwistStampedPtr &encoder_msg);
+//    queue<custom_msgs::EncoderConstPtr> encbuf;
+    queue<geometry_msgs::TwistStampedPtr> encbuf;
     std::mutex mBufMutex;
 
 };
@@ -94,8 +96,7 @@ int main(int argc, char **argv)
     EncoderGrabber encgb;
 
     cerr<<"sub encoder"<<endl;
-    ros::Subscriber sub_encoder = node_handler.subscribe("/encoder/data_raw", 100, &EncoderGrabber::GrabEncoder,&encgb);
-
+    ros::Subscriber sub_encoder = node_handler.subscribe("/twiststamped", 100, &EncoderGrabber::GrabEncoder,&encgb);
 
 
     ImuGrabber imugb;
@@ -238,7 +239,7 @@ void ImageGrabber::SyncWithImu()
                     vImuMeas.clear();
                     //cerr<<"Imu Buffer: "<<mpImuGb->imuBuf.size()<<endl;
                     //cerr<<"进入循环 ： "<<(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)<<endl;
-                    while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)
+                    while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)      //找出离该IMU最近的一帧encoder
                     {
                         double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
                         double encoder_v = 0;
@@ -248,7 +249,7 @@ void ImageGrabber::SyncWithImu()
                             while(!mpEncGb->encbuf.empty()&&mpEncGb->encbuf.front()->header.stamp.toSec()<=mpImuGb->imuBuf.front()->header.stamp.toSec()){
  //                               d_encoder = 0
 
-                                encoder_v=mpEncGb->encbuf.front()->v;
+                                encoder_v=mpEncGb->encbuf.front()->twist.linear.x;
                                 mpEncGb->encbuf.pop();
                             }
                         }
@@ -290,7 +291,7 @@ void ImuGrabber::GrabImu(const sensor_msgs::ImuConstPtr &imu_msg)
     mBufMutex.unlock();
 }
 
-void EncoderGrabber::GrabEncoder(const custom_msgs::EncoderConstPtr &encoder_msg)
+void EncoderGrabber::GrabEncoder(const geometry_msgs::TwistStampedPtr &encoder_msg)
 {
     //cerr<<"Begin to receive Encoder"<<endl;
     mBufMutex.lock();
